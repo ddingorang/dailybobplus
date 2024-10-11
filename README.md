@@ -7,9 +7,13 @@
 1. Slack 채널에 앱(bot) 추가
 2. **1, 4, 6** 중 하나를 입력(1호점, 4호점, 6호점)
 3. 밥플러스 네이버 블로그에 게재된 오늘의 메뉴 사진을 크롤링하여 Slack bot이 사진과 함께 응답
+<img src="images/bp2.jpg" alt="Example Image" width="600" />
+
 
 ## 📖 Abstract
 ### Socket Mode
+<img src="images/bp5.jpg" alt="Example Image" width="600" />
+
 - 로컬 환경에서 개발할 때 사용하는 모드
 - 슬랙 앱에서 이벤트 발생 시 로컬 주소로 request를 보냄
 - request url을 지정할 필요가 없음
@@ -24,10 +28,15 @@
 
 ### OAuth & Permissions
 - Bot User OAuth Token 발급 필요 : 소스 코드에 붙여 넣기
+<img src="images/bp3.jpg" alt="Example Image" style="float:left; margin: 50px;" width="500" />
+
 - 새로 발급 받을 때마다 앱 reinstall 필요
 - Bot Token Scopes : channels:read, groups:history만 설정, 너무 많이 권한을 주면 채널 내 이벤트에 봇이 민감해짐 => 중복 호출?
+<img src="images/bp4.jpg" alt="Example Image" width="500" />
 
 ### AWS Lambda
+<img src="images/bp7.jpg" alt="Example Image" width="700" />
+
 - 서버리스 컴퓨팅 서비스, 코드를 실행할 수 있는 환경을 자동으로 관리
 - 이벤트 기반 : 이벤트에 따라 코드를 실행(AWS 서비스(예: S3, DynamoDB, SNS) 또는 **HTTP 요청(API Gateway)**)
 - lambda로 배포, 함수 등록
@@ -39,6 +48,7 @@
   - 추가 리소스 - 계층 - 계층 추가 - 모듈들 zip 파일 업로드하고 생성
     - 런타임을 동일하게(Python 3.9)
     - **모듈 zip 파일 만들 때 정의된 디렉터리 계층 구조 준수!!!**
+    - <img src="images/bp6.jpg" alt="Example Image" width="500" />
     - 그래야 lambda 함수가 라이브러리를 찾을 수 있음
     - [Python Lambda 함수를 위한 계층 작업 - AWS Lambda](https://docs.aws.amazon.com/ko_kr/lambda/latest/dg/python-layers.html)
   - 그리고 lambda 함수 설정 맨 하단에 계층에서 add layer - 사용자 지정 계층 - 이전에 만들었던 layer 선택하고 추가
