@@ -1,30 +1,61 @@
-from flask import Flask, request, jsonify
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import requests
 from bs4 import BeautifulSoup
 import os
 import re
+import hmac
+import hashlib
+import time
+import json
 
-app = Flask(__name__)
+SLACK_TOKEN = 'your-slack-token'
+SLACK_SIGNING_SECRET = 'your-signing-secret'
 
-SLACK_TOKEN = 'your-bot-token'
 client = WebClient(token=SLACK_TOKEN)
 
-# 파일 이름에서 유효하지 않은 문자를 제거하는 함수
-def sanitize_filename(filename):
-    return re.sub(r'[<>:"/\\|*]', '_', filename)
 
-@app.route('/', methods=['POST'])
-def slack_events():
-    data = request.json
+# 파일 이름에서 유효하지 않은 문자를 제거하는 함수
+# def sanitize_filename(filename):
+#     return re.sub(r'[<>:"/\\|*]', '_', filename)
+
+
+def is_valid_request(req):
+    # 요청의 타임스탬프와 서명 헤더 가져오기
+    timestamp = req['headers']['x-slack-request-timestamp']
+    signature = req['headers']['x-slack-signature']
+
+    # 요청이 5분 이상 오래된 경우 무효 처리
+    if abs(int(time.time()) - int(timestamp)) > 5:
+        return False
+
+    # 서명 문자열 생성
+    sig_basestring = f"v0:{timestamp}:{req['body']}"
+    my_signature = 'v0=' + hmac.new(
+        SLACK_SIGNING_SECRET.encode(),
+        sig_basestring.encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    # 서명 비교
+    return hmac.compare_digest(my_signature, signature)
+
+
+def slack_events(event, context):
+    if not is_valid_request(event):
+        return "Unauthorized", 403
+    data = json.loads(event['body'])
+
     # 슬랙의 이벤트를 확인
     if 'challenge' in data:
-        return jsonify({'challenge': data['challenge']})
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'challenge': data['challenge']})
+        }
 
     if 'event' in data:
         event = data['event']
-
+        print(event)
         # 메시지가 봇의 것인지 확인
         if event.get('type') == 'message' and 'subtype' not in event:
             user = event['user']
@@ -33,16 +64,16 @@ def slack_events():
 
             # 봇의 ID를 가져오기
             bot_id = client.api_call("auth.test")['user_id']
-            if user != bot_id :
+            if user != bot_id:
                 if text == '1' or text == '4' or text == '6':
-                    if text == '1' :
+                    if text == '1':
                         # 웹 페이지 가져오기
                         url = 'https://blog.naver.com/PostList.naver?blogId=babplus123&from=postList&categoryNo=20'
                         fn = '1'
-                    elif text == '4' :
+                    elif text == '4':
                         url = 'https://blog.naver.com/PostList.naver?blogId=babplus123&from=postList&categoryNo=18'
                         fn = '4'
-                    elif text == '6' :
+                    elif text == '6':
                         url = 'https://blog.naver.com/PostList.naver?blogId=babplus123&from=postList&categoryNo=19'
                         fn = '6'
                     response = requests.get(url)
@@ -50,12 +81,12 @@ def slack_events():
                     if response.status_code == 200:
                         # Beautiful Soup 객체 생성
                         soup = BeautifulSoup(response.content, 'html.parser')
-                        #print(soup)
-                        os.makedirs("images", exist_ok=True)
+                        # print(soup)
+                        # os.makedirs("images", exist_ok=True)
                         for img in soup.find_all('img'):
-                            if img.get('data-lazy-src') :
+                            if img.get('data-lazy-src'):
                                 img_url = img.get('data-lazy-src')
-                                print(img_url)
+                                # print(img_url)
                                 # # 이미지 다운로드
                                 # try:
                                 #     img_data = requests.get(img_url).content
@@ -88,7 +119,8 @@ def slack_events():
                 #         client.chat_postMessage(channel=channel, text=response_text)
                 #     except SlackApiError as e:
                 #         print(f"Error sending message: {e.response['error']}")
-    return '', 200
+    return {
+        'statusCode': 200,
+        'body': json.dumps('OK')
+    }
 
-if __name__ == "__main__":
-    app.run(port=3000)
