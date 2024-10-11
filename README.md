@@ -34,6 +34,15 @@
 - **Bot Token Scopes** : channels:read, groups:history만 설정, 권한은 적당히
 <img src="images/bp4.jpg" alt="Example Image" width="500" />
 
+### Signing Secrets
+<img src="images/bp9.jpg" alt="Example Image" width="400" />
+
+- lambda 함수로의 요청이 Slack에서 발생한 event로 인한 요청인지 검증
+- **무결성과 인증**
+- 검증 로직
+<img src="images/bp8.jpg" alt="Example Image" width="400" />
+  
+
 ### AWS Lambda
 <img src="images/bp7.jpg" alt="Example Image" width="700" />
 
@@ -54,7 +63,7 @@
   - 그리고 lambda 함수 설정 맨 하단에 계층에서 add layer - 사용자 지정 계층 - 이전에 만들었던 layer 선택하고 추가
   
 
-## Problem / Solution
+## Problem / Solution 
 - Slack의 채팅창에 한 번만 요청하였는데, 여러 번의 event가 발생하여 여러 번의 메뉴 응답이 이루어지는 현상
 - Slack은 event가 request 된 후 3초 이내로 200 ok response를 받지 않으면 request를 재시도함
 - **lambda가 request에 3초 이내로 응답하지 못해** 발생하는 문제임을 추정
