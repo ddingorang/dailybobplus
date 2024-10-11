@@ -39,6 +39,8 @@
   - 추가 리소스 - 계층 - 계층 추가 - 모듈들 zip 파일 업로드하고 생성
     - 런타임을 동일하게(Python 3.9)
     - **모듈 zip 파일 만들 때 정의된 디렉터리 계층 구조 준수!!!**
+    - 그래야 lambda 함수가 라이브러리를 찾을 수 있음
+    - [Python Lambda 함수를 위한 계층 작업 - AWS Lambda](https://docs.aws.amazon.com/ko_kr/lambda/latest/dg/python-layers.html)
   - 그리고 lambda 함수 설정 맨 하단에 계층에서 add layer - 사용자 지정 계층 - 이전에 만들었던 layer 선택하고 추가
   
 
