@@ -27,11 +27,11 @@
 - 커맨드 실행 시마다 주소가 바뀜 -> Event Subscription에서 request url 변경 필요
 
 ### OAuth & Permissions
-- Bot User OAuth Token 발급 필요 : 소스 코드에 붙여 넣기
+- **Bot User OAuth Token** 발급 필요 : 소스 코드에 붙여 넣기
 <img src="images/bp3.jpg" alt="Example Image" style="float:left; margin: 50px;" width="500" />
 
 - 새로 발급 받을 때마다 앱 reinstall 필요
-- Bot Token Scopes : channels:read, groups:history만 설정, 너무 많이 권한을 주면 채널 내 이벤트에 봇이 민감해짐 => 중복 호출?
+- **Bot Token Scopes** : channels:read, groups:history만 설정, 권한은 적당히
 <img src="images/bp4.jpg" alt="Example Image" width="500" />
 
 ### AWS Lambda
@@ -66,5 +66,12 @@
   > request 들어오면? lambda 함수 실행 위해 부수적인 준비 필요하고 -> 이것이 수 초 ~ 수십 초 -> 꽤 오래 소요된다. -> lambda의 단점  
   > 상대적으로 느린 response : **Cold Start**  
   > 메모리를 늘리면? 성능 향상 -> 처리 속도가 빨라짐  
-  > 기존의 메모리는 128MB -> 1024MB로 상향 조정  
+  > 기존의 메모리는 128MB -> **2048MB**로 상향 조정  
   > **메모리 상향으로 Slack의 request에 3초 이내로 응답하여 문제 해결**  
+
+### lambda free tier
+- 요청 당 돈이 부과 -> 너무 많이 요청하면 요금 부과되는 것 아닌가?
+- lambda의 free tier는 **매우 관대함**, 사실상 무료
+- **(메모리 별 가격) x (요청 처리 시간) x (요청 수)**
+- 월 10만건, 2000ms, 2048MB 가정하여 계산해도 무료(최대한 넉넉하게 잡아도)
+- [AWS Lambda 요금 계산기](https://calculator.aws/#/createCalculator/Lambda)
