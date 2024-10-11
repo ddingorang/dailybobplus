@@ -18,4 +18,6 @@
 ### OAuth & Permissions
 - Bot User OAuth Token 발급 필요 : 코드에 붙여 넣기
 - 새로 발급 받을 때마다 reinstall 필요
-- Bot Token Scopes
+- Bot Token Scopes : channels:read, groups:history만 설정, 너무 많이 권한을 주면 채널 내 이벤트에 봇이 민감해짐 => 중복 호출
+
+### AWS Lambda
