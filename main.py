@@ -9,8 +9,8 @@ import hashlib
 import time
 import json
 
-SLACK_TOKEN = 'your-slack-token'
-SLACK_SIGNING_SECRET = 'your-signing-secret'
+SLACK_TOKEN = 'YOUR_SLACK_TOKEN'
+SLACK_SIGNING_SECRET = 'YOUR_SIGNING_SECRET'
 
 client = WebClient(token=SLACK_TOKEN)
 
@@ -26,7 +26,7 @@ def is_valid_request(req):
     signature = req['headers']['x-slack-signature']
 
     # 요청이 5분 이상 오래된 경우 무효 처리
-    if abs(int(time.time()) - int(timestamp)) > 5:
+    if abs(int(time.time()) - int(timestamp)) > 605:
         return False
 
     # 서명 문자열 생성
@@ -46,6 +46,7 @@ def slack_events(event, context):
         return "Unauthorized", 403
     data = json.loads(event['body'])
 
+    found = False
     # 슬랙의 이벤트를 확인
     if 'challenge' in data:
         return {
@@ -83,9 +84,11 @@ def slack_events(event, context):
                         soup = BeautifulSoup(response.content, 'html.parser')
                         # print(soup)
                         # os.makedirs("images", exist_ok=True)
+
                         for img in soup.find_all('img'):
                             if img.get('data-lazy-src'):
                                 img_url = img.get('data-lazy-src')
+                                found = True
                                 # print(img_url)
                                 # # 이미지 다운로드
                                 # try:
@@ -97,11 +100,10 @@ def slack_events(event, context):
                                 #     print(f'Downloaded: {img_name}')
                                 # except Exception as e:
                                 #     print(f'Could not download {img_url}: {e}')
-
                                 try:
                                     client.chat_postMessage(
                                         channel=channel,
-                                        text=f"오늘 {fn}호점의 메뉴는 아래와 같습니다",
+                                        text=f"오늘 {fn}호점의 메뉴는 아래와 같습니다!",
                                         attachments=[{
                                             "image_url": img_url,
                                             "text": "See the image above."
@@ -110,6 +112,20 @@ def slack_events(event, context):
                                 except SlackApiError as e:
                                     print(f"Error sending message: {e.response['error']}")
                                 break
+                        if found == False:
+                            # tmp = ''
+                            # for s in soup.find_all('span') :
+                            ##   tmp += s
+
+                            try:
+                                client.chat_postMessage(
+                                    channel=channel,
+                                    text=f"{fn}호점의 메뉴를 불러올 수 없습니다. (이미지 없음) \n 블로그를 직접 방문하여 확인해보세요. \n {url}"
+
+                                )
+                            except SlackApiError as e:
+                                print(f"Error sending message: {e.response['error']}")
+
                     else:
                         print(f'Failed to retrieve the webpage: {response.status_code}')
                 # else :
