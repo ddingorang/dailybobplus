@@ -8,17 +8,16 @@ import hmac
 import hashlib
 import time
 import json
+import datetime
+from urllib.parse import quote
 
-SLACK_TOKEN = 'YOUR_SLACK_TOKEN'
-SLACK_SIGNING_SECRET = 'YOUR_SIGNING_SECRET'
+SLACK_TOKEN = 'YOUR-SLACK-TOKEN'
+SLACK_SIGNING_SECRET = 'YOUR-SIGNING-SECRET'
 
 client = WebClient(token=SLACK_TOKEN)
 
-
-# 파일 이름에서 유효하지 않은 문자를 제거하는 함수
-# def sanitize_filename(filename):
-#     return re.sub(r'[<>:"/\\|*]', '_', filename)
-
+# 중복 이벤트를 추적할 메모리 저장소 (예시로 메모리에 저장)
+processed_events = set()
 
 def is_valid_request(req):
     # 요청의 타임스탬프와 서명 헤더 가져오기
@@ -44,6 +43,7 @@ def is_valid_request(req):
 def slack_events(event, context):
     if not is_valid_request(event):
         return "Unauthorized", 403
+
     data = json.loads(event['body'])
 
     found = False
@@ -62,13 +62,25 @@ def slack_events(event, context):
             user = event['user']
             channel = event['channel']
             text = event['text']
+            event_id = event.get('event_id', None)  # 이벤트의 고유 ID
+
+            # 이미 처리한 이벤트라면 건너뛰기
+            if event_id and event_id in processed_events:
+                print(f"Event {event_id} already processed.")
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps('OK')
+                }
+
+            # 이벤트 ID를 처리된 목록에 추가
+            if event_id:
+                processed_events.add(event_id)
 
             # 봇의 ID를 가져오기
             bot_id = client.api_call("auth.test")['user_id']
             if user != bot_id:
                 if text == '1' or text == '4' or text == '6':
                     if text == '1':
-                        # 웹 페이지 가져오기
                         url = 'https://blog.naver.com/PostList.naver?blogId=babplus123&from=postList&categoryNo=20'
                         fn = '1'
                     elif text == '4':
@@ -77,66 +89,101 @@ def slack_events(event, context):
                     elif text == '6':
                         url = 'https://blog.naver.com/PostList.naver?blogId=babplus123&from=postList&categoryNo=19'
                         fn = '6'
+
                     response = requests.get(url)
                     # 응답이 성공적인지 확인
                     if response.status_code == 200:
                         # Beautiful Soup 객체 생성
                         soup = BeautifulSoup(response.content, 'html.parser')
-                        # print(soup)
-                        # os.makedirs("images", exist_ok=True)
 
-                        for img in soup.find_all('img'):
-                            if img.get('data-lazy-src'):
-                                img_url = img.get('data-lazy-src')
-                                found = True
-                                # print(img_url)
-                                # # 이미지 다운로드
-                                # try:
-                                #     img_data = requests.get(img_url).content
-                                #     #img_name = os.path.join('images', sanitize_filename(img_url.split('/')[-1]).split('?')[0])  # 파일 이름 생성
-                                #     img_name = os.path.join('images', f'{fn}.jpg')
-                                #     with open(img_name, 'wb') as f:
-                                #         f.write(img_data)
-                                #     print(f'Downloaded: {img_name}')
-                                # except Exception as e:
-                                #     print(f'Could not download {img_url}: {e}')
-                                try:
-                                    client.chat_postMessage(
-                                        channel=channel,
-                                        text=f"오늘 {fn}호점의 메뉴는 아래와 같습니다!",
-                                        attachments=[{
-                                            "image_url": img_url,
-                                            "text": "See the image above."
-                                        }]
-                                    )
-                                except SlackApiError as e:
-                                    print(f"Error sending message: {e.response['error']}")
-                                break
-                        if found == False:
-                            # tmp = ''
-                            # for s in soup.find_all('span') :
-                            ##   tmp += s
+                        if text == '4':
+                            today = datetime.datetime.today()
+                            weekday = today.weekday()
+                            count = -1
+                            for img in soup.find_all('img'):
+                                if img.get('data-lazy-src'):
+                                    count += 1
+                                    if count != weekday:
+                                        continue
+                                    else:
+                                        img_url = img.get('data-lazy-src')
+                                        found = True
+                                        try:
+                                            client.chat_postMessage(
+                                                channel=channel,
+                                                text=f"오늘 {fn}호점의 메뉴는 아래와 같습니다!",
+                                                attachments=[{
+                                                    "image_url": img_url,
+                                                    "text": "See the image above."
+                                                }]
+                                            )
+                                        except SlackApiError as e:
+                                            print(f"Error sending message: {e.response['error']}")
+                                        break
+
+                        else:
+                            # 블로그 글 내 이미지 찾기
+                            for img in soup.find_all('img'):
+                                if img.get('data-lazy-src'):
+                                    img_url = img.get('data-lazy-src')
+                                    found = True
+                                    try:
+                                        client.chat_postMessage(
+                                            channel=channel,
+                                            text=f"오늘 {fn}호점의 메뉴는 아래와 같습니다!",
+                                            attachments=[{
+                                                "image_url": img_url,
+                                                "text": "See the image above."
+                                            }]
+                                        )
+                                    except SlackApiError as e:
+                                        print(f"Error sending message: {e.response['error']}")
+                                    break
+
+                        if not found:  # 이미지를 찾지 못했다면
+                            # 특정 div 클래스 내의 p 태그 찾기
+                            target_div = soup.find('div', class_='se-main-container')
+                            # p 태그 중 클래스명이 se-text-paragraph se-text-paragraph-align-로 시작하는 것만 추출
+                            p_tags = target_div.find_all('p', class_=lambda x: x and x.startswith(
+                                'se-text-paragraph se-text-paragraph-align-'))
+
+                            # &ZeroWidthSpace를 포함하는 span이 있는 p 태그 제외하고 텍스트 모으기
+                            text_content = []
+                            checkcount = 0
+                            for p in p_tags:
+                                # p 태그 내의 모든 span 태그 확인
+                                spans = p.find_all('span')
+                                # &ZeroWidthSpace 포함 여부 체크
+                                contains_zero_width_space = any(
+                                    '&ZeroWidthSpace;' in span.encode('unicode_escape').decode() for span in spans)
+
+                                # &ZeroWidthSpace가 포함되지 않으면 텍스트를 수집
+                                if not contains_zero_width_space:
+                                    text_content.append(p.text.strip())
+                                    checkcount += 1
+                                if checkcount == 11:  # 11줄까지만 받음
+                                    break
 
                             try:
                                 client.chat_postMessage(
                                     channel=channel,
-                                    text=f"{fn}호점의 메뉴를 불러올 수 없습니다. (이미지 없음) \n 블로그를 직접 방문하여 확인해보세요. \n {url}"
-
+                                    text=f"{fn}호점의 메뉴는 다음과 같습니다. (이미지 없음)\n\n" + "\n\n".join(text_content)
                                 )
                             except SlackApiError as e:
                                 print(f"Error sending message: {e.response['error']}")
 
                     else:
                         print(f'Failed to retrieve the webpage: {response.status_code}')
-                # else :
-                #     # 사용자 메시지에 응답
-                #     response_text = f"1, 4, 6 중 하나를 입력해 주세요."
-                #     try:
-                #         client.chat_postMessage(channel=channel, text=response_text)
-                #     except SlackApiError as e:
-                #         print(f"Error sending message: {e.response['error']}")
+                if "!AppIcon" in text:
+                    try:
+                        client.chat_postMessage(
+                            channel=channel,
+                            text="앱 아이콘 추천 받습니다... DM 주세요!"
+                        )
+                    except SlackApiError as e:
+                        print(f"Error sending message: {e.response['error']}")
+
     return {
         'statusCode': 200,
         'body': json.dumps('OK')
     }
-
